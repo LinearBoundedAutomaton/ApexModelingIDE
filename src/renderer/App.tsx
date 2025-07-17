@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
+import Controls from './components/Controls'
+import CodeEditor from './components/CodeEditor'
+import StatusPanel from './components/StatusPanel'
 
 function App() {
   const [appVersion, setAppVersion] = useState<string>('')
@@ -743,334 +746,72 @@ function App() {
 
       {/* Main Content */}
       <div className="main-content">
-        {/* Sidebar */}
-        <div className="sidebar">
-          <div className="sidebar-section">
-            <h3>Controls</h3>
-            
-            {/* Context Mode Toggle */}
-            <div className="control-item">
-              <label className="control-label">
-                <input
-                  type="checkbox"
-                  checked={currentContextMode}
-                  onChange={(e) => handleContextModeChange(e.target.checked)}
-                  className="control-checkbox"
-                />
-                Use Context Mode
-              </label>
-            </div>
-            
-            {/* Context Name Input */}
-            {currentContextMode && (
-              <div className="control-item">
-                <label className="control-label">Context Name:</label>
-                <input
-                  type="text"
-                  value={currentContextName}
-                  onChange={(e) => handleContextNameChange(e.target.value)}
-                  placeholder="Enter context name"
-                  className="control-input"
-                />
-              </div>
-            )}
-            
-            {/* Context Unit Input */}
-            {currentContextMode && (
-              <div className="control-item">
-                <label className="control-label">Unit:</label>
-                <input
-                  type="text"
-                  value={currentContextUnit}
-                  onChange={(e) => handleContextUnitChange(e.target.value)}
-                  placeholder="Enter unit name"
-                  className="control-input"
-                />
-              </div>
-            )}
-            
-            {/* Alias Name Input */}
-            <div className="control-item">
-              <label className="control-label">Alias Name:</label>
-              <input
-                type="text"
-                value={currentAliasName}
-                onChange={(e) => handleAliasNameChange(e.target.value)}
-                placeholder="Enter alias name"
-                className="control-input"
-              />
-            </div>
-            
-            <button 
-              className="btn btn-primary"
-              onClick={handleSendMessage}
-              disabled={
-                starcraftHandle === 'Not found' || 
-                parsedStrings.length === 0 || 
-                !currentAliasName.trim() ||
-                (currentContextMode && (!currentContextName.trim() || !currentContextUnit.trim())) ||
-                isSendRunning ||
-                isClearRunning
-              }
-            >
-              {isSendRunning ? (
-                <>
-                  <span className="spinner">⏳</span>
-                  Sending...
-                </>
-              ) : (
-                'Send'
-              )}
-            </button>
-            
-            <button 
-              className="btn btn-primary"
-              onClick={handleForceSendMessage}
-              disabled={
-                starcraftHandle === 'Not found' || 
-                parsedStrings.length === 0 || 
-                !currentAliasName.trim() ||
-                (currentContextMode && (!currentContextName.trim() || !currentContextUnit.trim())) ||
-                isSendRunning ||
-                isClearRunning
-              }
-            >
-              {isSendRunning ? (
-                <>
-                  <span className="spinner">⏳</span>
-                  Sending...
-                </>
-              ) : (
-                'Force Send'
-              )}
-            </button>
-            
-            <button 
-              className="btn btn-secondary"
-              onClick={async () => {
-                try {
-                  if (window.electronAPI && starcraftHandle !== 'Not found' && currentAliasName.trim()) {
-                    setIsClearRunning(true);
-                    setShouldStop(false);
-                    const handle = parseInt(starcraftHandle);
-                    console.log('=== Clearing Aliases ===');
-                    
-                    for (let i = 0; i <= maxClearIndex && !shouldStop; i++) {
-                      const generatedName = `${currentAliasName.trim()}-${i}`;
-                      const removeCommand = `alias remove ${generatedName}`;
-                      console.log(`Sending remove command for index ${i}: ${removeCommand}`);
-                      
-                      const success = await sendTextWithEnterBuffer(removeCommand);
-                      console.log(`Remove command ${i} result:`, success);
-                      
-                      // Check if we should stop after this command
-                      if (shouldStop) {
-                        console.log(`Stopping clear operation after index ${i}`);
-                        break;
-                      }
-                      
-                      // Small delay between commands (except for the last one)
-                      if (i < maxClearIndex) {
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                      }
-                    }
-                    
-                    if (!shouldStop) {
-                      console.log('=== Alias Clear Complete ===');
-                    } else {
-                      console.log('=== Alias Clear Interrupted ===');
-                    }
-                  } else {
-                    console.log('No valid window handle or alias name available');
-                  }
-                } catch (error) {
-                  console.error('Error clearing aliases:', error);
-                } finally {
-                  setIsClearRunning(false);
+        {/* Sidebar Controls */}
+        <Controls
+          currentContextMode={currentContextMode}
+          currentContextName={currentContextName}
+          currentContextUnit={currentContextUnit}
+          onContextModeChange={handleContextModeChange}
+          onContextNameChange={handleContextNameChange}
+          onContextUnitChange={handleContextUnitChange}
+          currentAliasName={currentAliasName}
+          onAliasNameChange={handleAliasNameChange}
+          starcraftHandle={starcraftHandle}
+          parsedStrings={parsedStrings}
+          isSendRunning={isSendRunning}
+          isClearRunning={isClearRunning}
+          maxClearIndex={maxClearIndex}
+          onMaxClearIndexChange={setMaxClearIndex}
+          onSendMessage={handleSendMessage}
+          onForceSendMessage={handleForceSendMessage}
+          onClearAlias={async () => {
+            try {
+              if (window.electronAPI && starcraftHandle !== 'Not found' && currentAliasName.trim()) {
+                setIsClearRunning(true);
+                setShouldStop(false);
+                const handle = parseInt(starcraftHandle);
+                for (let i = 0; i <= maxClearIndex && !shouldStop; i++) {
+                  const generatedName = `${currentAliasName.trim()}-${i}`;
+                  const removeCommand = `alias remove ${generatedName}`;
+                  await sendTextWithEnterBuffer(removeCommand);
+                  if (shouldStop) break;
+                  if (i < maxClearIndex) await new Promise(resolve => setTimeout(resolve, 500));
                 }
-              }}
-              disabled={
-                starcraftHandle === 'Not found' || 
-                !currentAliasName.trim() ||
-                isSendRunning ||
-                isClearRunning
               }
-            >
-              {isClearRunning ? (
-                <>
-                  <span className="spinner">⏳</span>
-                  Clearing...
-                </>
-              ) : (
-                'Clear Alias'
-              )}
-            </button>
-            
-            {/* Max Clear Index Input */}
-            <div className="control-item">
-              <label className="control-label">Max Clear Index:</label>
-              <input
-                type="number"
-                value={maxClearIndex}
-                onChange={(e) => setMaxClearIndex(parseInt(e.target.value) || 0)}
-                min="0"
-                max="100"
-                className="control-input"
-              />
-            </div>
-            
-            {/* Stop Button */}
-            <button 
-              className="btn btn-danger"
-              onClick={handleStopAll}
-              disabled={!isSendRunning && !isClearRunning && !isPeriodicEnterRunning}
-            >
-              Stop All
-            </button>
-          </div>
-          
-          <div className="sidebar-section">
-            <h3>App Info</h3>
-            <p>Version: {appVersion}</p>
-            <p>Platform: {navigator.platform}</p>
-          </div>
-        </div>
-
-        {/* Editor Area */}
-        <div className="editor-area">
-          <div className="editor-header">
-            <h2>Code Editor</h2>
-            <div className="editor-tabs">
-              {tabs.map(tab => (
-                <div 
-                  key={tab.id}
-                  className={`tab ${tab.id === activeTabId ? 'active' : ''}`}
-                  onClick={() => handleTabChange(tab.id)}
-                >
-                  <span>{tab.name}</span>
-                  {tab.content.trim() === '' && tabs.length > 1 && (
-                    <button
-                      className="tab-close"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDeleteTab(tab.id)
-                      }}
-                      title="Close tab"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button 
-                className="tab-add"
-                onClick={handleCreateTab}
-                title="Add new tab"
-              >
-                +
-              </button>
-            </div>
-          </div>
-          
-          <div className="editor-content">
-            <textarea
-              value={currentFileContent}
-              onChange={(e) => handleTabContentChange(e.target.value)}
-              placeholder="Start coding your Apex model here..."
-              className="code-editor"
-            />
-          </div>
-
-          {/* Alias Data Area */}
-          <div className="alias-area">
-            <div className="alias-header">
-              <h2>Parsed Strings ({parsedStrings.length} entries)</h2>
-              {debounceTimeout && <span className="parsing-indicator">Parsing...</span>}
-            </div>
-            
-            <div className="alias-content">
-              <textarea
-                value={parsedStrings.map((str, index) => `[${index + 1}] (${str.length} chars): ${str}`).join('\n')}
-                readOnly
-                placeholder="Parsed strings will appear here..."
-                className="alias-editor"
-              />
-            </div>
-          </div>
-        </div>
-
+            } catch (error) {
+              console.error('Error clearing aliases:', error);
+            } finally {
+              setIsClearRunning(false);
+            }
+          }}
+          onStopAll={handleStopAll}
+          appVersion={appVersion}
+        />
+        {/* Code Editor Area */}
+        <CodeEditor
+          tabs={tabs}
+          activeTabId={activeTabId}
+          onTabChange={handleTabChange}
+          onTabContentChange={handleTabContentChange}
+          onCreateTab={handleCreateTab}
+          onDeleteTab={handleDeleteTab}
+          parsedStrings={parsedStrings}
+          debounceTimeout={debounceTimeout}
+        />
         {/* Status Panel */}
-        <div className="stats-panel">
-          <div className="stats-header">
-            <h3>Status</h3>
-          </div>
-          <div className="stats-content">
-            <div className="stat-item">
-              <span className="stat-label">Characters:</span>
-              <span className="stat-value">{currentFileContent.length}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Alias Count:</span>
-              <span className="stat-value">{parsedStrings.length}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Starcraft II Handle:</span>
-              <span className="stat-value">{starcraftHandle}</span>
-            </div>
-            <button 
-              className="btn btn-secondary"
-              onClick={handleIdentifyWindow}
-            >
-              Identify Window
-            </button>
-            <button 
-              className="btn btn-secondary"
-              onClick={handleSendEnter}
-            >
-              Send Enter
-            </button>
-            <button 
-              className="btn btn-secondary"
-              onClick={handleStartPeriodicEnter}
-              disabled={isPeriodicEnterRunning || starcraftHandle === 'Not found'}
-            >
-              {isPeriodicEnterRunning ? (
-                <>
-                  <span className="spinner">⏳</span>
-                  Running...
-                </>
-              ) : (
-                'Start Periodic Enter/Escape'
-              )}
-            </button>
-            <button 
-              className="btn btn-secondary"
-              onClick={handleStopPeriodicEnter}
-              disabled={!isPeriodicEnterRunning}
-            >
-              {isPeriodicEnterRunning ? (
-                'Stop Periodic Enter/Escape'
-              ) : (
-                'Periodic Enter/Escape Stopped'
-              )}
-            </button>
-
-            {/* Periodic Enter/Escape Interval Control */}
-            <div className="control-item">
-              <label className="control-label">Periodic Enter/Escape Interval (seconds):</label>
-              <input
-                type="number"
-                value={periodicEnterInterval}
-                onChange={(e) => setPeriodicEnterInterval(parseInt(e.target.value) || 1)}
-                min="1"
-                max="300"
-                className="control-input"
-                disabled={isPeriodicEnterRunning}
-              />
-            </div>
-
-          </div>
-        </div>
+        <StatusPanel
+          currentFileContent={currentFileContent}
+          parsedStrings={parsedStrings}
+          starcraftHandle={starcraftHandle}
+          onIdentifyWindow={handleIdentifyWindow}
+          onSendEnter={handleSendEnter}
+          onStartPeriodicEnter={handleStartPeriodicEnter}
+          onStopPeriodicEnter={handleStopPeriodicEnter}
+          periodicEnterInterval={periodicEnterInterval}
+          onPeriodicEnterIntervalChange={setPeriodicEnterInterval}
+          isPeriodicEnterRunning={isPeriodicEnterRunning}
+          appVersion={appVersion}
+        />
       </div>
     </div>
   )
